@@ -1,10 +1,6 @@
 import socket
 import threading
-
-
-"""
-    Implementar: diferentes conversas, mensagens que serão enviadas posteriormente quando um usuário reconectar
-"""
+import json
 
 
 host = '127.0.0.1'
@@ -26,17 +22,20 @@ def broadcast(message):
         except:
             pass    # Desconectar o cliente*
 
+def handle_login(client):
+    pass
 
-def handle(client):
+def handle_client(client):
     """
     Vai lidar com o recebimento de mensagens de diferentes clientes e suas threads
     """
     while True:
         try:
             message = client.recv(1024)
-            broadcast(message)
+            print(message.decode())     # TESTAGEM: mostra a mensagem do cliente no terminal do servidor
         except:
             client.close()
+            break
 
 
 def receive():
@@ -52,12 +51,17 @@ def receive():
         nickname = client.recv(1024).decode()
         clients.append(client)
 
+        with open('users-names.txt', 'a') as file:
+            file.write(f'{nickname}\n')
+            file.close()
+        
+        
         print(f'Nick do cliente é: {nickname}')
         broadcast(f'{nickname} se juntou ao chat!'.encode())
 
         client.send("Conexão estabelecida com o servidor".encode())
 
-        thread = threading.Thread(target=handle, args=(client,))
+        thread = threading.Thread(target=handle_client, args=(client,))
         thread.start()
 
 

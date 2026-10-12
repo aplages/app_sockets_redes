@@ -31,9 +31,9 @@ def write():
         message = f'{nickname}: {input(">>  ")}'
         client.send(message.encode())
 
-recv_thread = threading.Thread(target=receive)
+receive_thread = threading.Thread(target=receive)
 
 write_thread = threading.Thread(target=write)
 
-recv_thread.start()
+receive_thread.start()
 write_thread.start()
