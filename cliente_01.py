@@ -14,6 +14,8 @@ def direct_message(user_dest, message):
     json_info = json.dumps(info)
     pass
 
+
+
 def group_message(group, message):
     info = {"dest": str(group),
                 "mensagem": str(message)}
@@ -43,7 +45,7 @@ def send():
     Escreve uma mensagem e envia ao servidor.
     """
     while True:
-        message = f'{nickname}: {input(">>  ")}'
+        message = input('>> ')
         client.send(message.encode())
 
 receive_thread = threading.Thread(target=receive)

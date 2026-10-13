@@ -22,6 +22,45 @@ def broadcast(message):
         except:
             pass    # Desconectar o cliente*
 
+def authenticator(client):
+    """
+    Autenticar diferentes clientes com password e usernames e criar caso não existam ainda
+    """
+    while True:
+        client.send('Login or Register'.encode()) #Perguntar modo de autenticação
+
+        modo = client.recv(1024).decode().strip().lower()
+        print(modo)
+
+        client.send('Username'.encode())
+
+        username = client.recv(1024).decode().strip()
+
+        client.send('Password'.encode())
+
+        password = client.recv(1024).decode().strip()
+
+        usuarios = {}
+        with open('user-teste.txt', 'r') as f:
+            for line in f:
+                if ':' in line:
+                    u, p = line.strip().split(':',1)
+                    usuarios[u] = p #coloca os usuarios ja existentes dentro do dicionario 
+        if modo == 'register':
+            if username in usuarios: #caso o login já exista
+                client.send('ERRO: Nome de usuário já existente'.encode()) 
+            else:
+                with open('user-teste.txt','a') as f:
+                    f.write(f'{username}:{password}\n')
+                client.send('Sucesso, criou a conta neguin'.encode())
+        elif modo == 'login':
+            if username in usuarios and usuarios[username] == password:
+                client.send('é tu mesmo neguin pode passar'.encode())
+                return username
+            else:
+                client.send('Erro, usuario ou senha tao errado kkkkk'.encode())
+        else:
+            client.send('Modo de autenticacao nao existente dog'.encode())
 def handle_login(client):
     pass
 
@@ -47,8 +86,14 @@ def receive():
         client, address = server.accept()                       # Recebe o socket e o IP do cleinte (a função retorna uma tupla)
         print(f'Conexão estabelecida com {address}')
 
-        client.send('NICK'.encode()) # recebe o NICK, futuramente receber login?
-        nickname = client.recv(1024).decode()
+        nickname = authenticator(client)
+
+        if not nickname:
+            client.close()
+            continue 
+
+        #client.send('NICK'.encode()) # recebe o NICK, futuramente receber login?
+        #nickname = client.recv(1024).decode()
         clients.append(client)
 
         with open('users-names.txt', 'a') as file:
