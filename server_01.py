@@ -26,43 +26,42 @@ def authenticator(client):
     """
     Autenticar diferentes clientes com password e usernames e criar caso não existam ainda
     """
+    client.send('LOGIN_HEADER'.encode())
     while True:
-        client.send('Login or Register'.encode()) #Perguntar modo de autenticação
 
-        modo = client.recv(1024).decode().strip().lower()
-        print(modo)
-
-        client.send('Username'.encode())
-
-        username = client.recv(1024).decode().strip()
-
-        client.send('Password'.encode())
-
-        password = client.recv(1024).decode().strip()
-
+        dados = json.loads(client.recv(1024).decode())
+        acao = dados['acao']
+        username = dados['username']
+        senha = dados['senha']
         usuarios = {}
         with open('user-teste.txt', 'r') as f:
             for line in f:
                 if ':' in line:
                     u, p = line.strip().split(':',1)
                     usuarios[u] = p #coloca os usuarios ja existentes dentro do dicionario 
-        if modo == 'register':
+        if acao == 'REGISTER':
             if username in usuarios: #caso o login já exista
-                client.send('ERRO: Nome de usuário já existente'.encode()) 
+                erro = {'acao':'ERRO',
+                        'local':'REGISTER',
+                        'erro':'0'}
+                erro = json.dumps(erro)
+                client.send(erro.encode())
             else:
                 with open('user-teste.txt','a') as f:
-                    f.write(f'{username}:{password}\n')
-                client.send('Sucesso, criou a conta neguin'.encode())
-        elif modo == 'login':
-            if username in usuarios and usuarios[username] == password:
-                client.send('é tu mesmo neguin pode passar'.encode())
+                    f.write(f'{username}:{senha}\n')
+                acao = json.dumps({'acao':'OK'})
+                client.send(acao.encode())
+                return username
+        elif acao == 'LOGIN':
+            if username in usuarios and usuarios[username] == senha:
+                acao = json.dumps({'acao':'OK'})
+                client.send(acao.encode())
                 return username
             else:
-                client.send('Erro, usuario ou senha tao errado kkkkk'.encode())
-        else:
-            client.send('Modo de autenticacao nao existente dog'.encode())
-def handle_login(client):
-    pass
+                erro = json.dumps({'acao':'ERRO',
+                                   'local':'LOGIN',
+                                   'erro':'1'})
+                client.send(acao.encode())
 
 def handle_client(client):
     """
