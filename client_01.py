@@ -5,7 +5,7 @@ import json
 nickname = input("Escolha seu nick (apelido):   ")
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
-client.connect(("0.0.0.0", 55555))                            # conecta o cliente ao servidor
+client.connect(("127.0.0.1", 55555))                            # conecta o cliente ao servidor
 
 def auth():
     # TRATAR NOME/SENHA VAZIOS NO CLIENTE (nas funções, antes de transformar em JSON)
@@ -84,6 +84,9 @@ def direct_message(user_dest, message):
     pass
 
 
+def create_group():
+    pass
+
 
 def group_message(group, message):
     info = {"dest": str(group),
@@ -99,8 +102,10 @@ def receive():
     while True:
         try:
             message = client.recv(1024).decode()
-            if message == 'AUTH_HEADER':
+            if message == 'LOGIN_HEADER':
                 auth()
+            elif message == 'CREATE_GROUP':
+                create_group()
             else:
                 print(message)
 
