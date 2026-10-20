@@ -54,6 +54,8 @@ def auth():
         resp = resposta['acao']
 
         if resp == 'OK':
+            send_thread = threading.Thread(target=send)
+            send_thread.start()
             break
         elif resp == 'ERRO':
             if resposta['local'] == 'LOGIN':
@@ -91,6 +93,8 @@ def receive():
             server_com = client.recv(1024).decode()
             if server_com == 'AUTH_HEADER':
                 auth()
+            elif server_com == 'CREATE_GROUP':
+                novo_grupo()
             else:
                 print(server_com)
 
@@ -111,5 +115,3 @@ def send():
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
-#send_thread = threading.Thread(target=send)
-#send_thread.start()

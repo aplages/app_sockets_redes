@@ -12,6 +12,13 @@ server.listen()                                                 # Começa a acei
 
 clients = []                                                    # Lista dos clientes
 
+
+def group_creator(client):
+    client.send('CREATE_GROUP'.encode())
+    while True:
+        dados = json.loads(client.recv(1024).decode())
+        print('dados recebidos!')
+        break
 def broadcast(message):
     """
     Envia uma mensagem a todos os clientes.
@@ -71,8 +78,11 @@ def handle_client(client):
     """
     while True:
         try:
-            message = client.recv(1024)
-            print(message.decode())     # TESTAGEM: mostra a mensagem do cliente no terminal do servidor
+            message = client.recv(1024).decode()
+            check = message.split(' ')
+            if check[0] == '/party':
+                group_creator(client)
+            print(message)     # TESTAGEM: mostra a mensagem do cliente no terminal do servidor
         except:
             client.close()
             break
@@ -101,6 +111,7 @@ def receive():
         broadcast(f'{nickname} se juntou ao chat!'.encode())
 
         client.send("Conexão estabelecida com o servidor".encode())
+
 
         thread = threading.Thread(target=handle_client, args=(client,))
         thread.start()
