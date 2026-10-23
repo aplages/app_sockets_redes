@@ -54,6 +54,8 @@ def auth():
         resp = resposta['acao']
 
         if resp == 'OK':
+            print('Sucesso na autenticação! \n')
+            # Iniciamos a thread de envio. O próprio input('>> ') dela desenha o prompt inicial.
             send_thread = threading.Thread(target=send)
             send_thread.start()
             break
@@ -96,7 +98,11 @@ def receive():
             elif server_com == 'CREATE_GROUP':
                 novo_grupo()
             else:
-                print(server_com)
+                # \r move o cursor para o começo da linha e \033[K apaga qualquer texto existente ali.
+                # Isso limpa o '>> ' antigo ou algo digitado pelo cliente para não misturar com o que chegou.
+                print(f'\r\033[K{server_com}')
+                # Redesenha o '>> ' imediatamente para o usuário continuar digitando se quiser
+                print('>> ', end='', flush=True)
 
         except:
             print('Erro!!')

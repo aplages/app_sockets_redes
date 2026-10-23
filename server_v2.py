@@ -10,22 +10,27 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # Inicia um serv
 server.bind((host, port))                                       # Aloca o servidor no IP-host e na PORTA-port
 server.listen()                                                 # Começa a aceitar conexões
 
-clients = []                                                    # Lista dos clientes
+clients = {}                                             # Lista dos clientes
 
+
+
+def direct_mensage(client):
+    pass
 
 def group_creator(client):
     client.send('CREATE_GROUP'.encode())
     while True:
         dados = json.loads(client.recv(1024).decode())
-        print('dados recebidos!')
-        break
-def broadcast(message):
+        break #faz mais sentido criar uma DM do que criar um grupo, mudando foco.
+
+def broadcast(message, sender):
     """
     Envia uma mensagem a todos os clientes.
     """
-    for client in clients:
+    for client in clients.values():
         try:
-            client.send(message)                                # Envia tal mensagem ao cliente
+            if client != sender:                 # É para o cliente que enviou a mensagem nao receber a propria mensagem 
+                client.send(message)             # Envia tal mensagem ao cliente
         except:
             pass    # Desconectar o cliente*
 
@@ -78,11 +83,12 @@ def handle_client(client):
     """
     while True:
         try:
-            message = client.recv(1024).decode()
+            message = client.recv(1024).decode() #lages doente FAZ DECODE DAS MENSAGENS PELO AMOR DE DEUS 
             check = message.split(' ')
-            if check[0] == '/party':
+            if check[0] == '/party': #VERIFICANDO SE O CLIENTE QUER FAZER UM GRUPO 
                 group_creator(client)
             print(message)     # TESTAGEM: mostra a mensagem do cliente no terminal do servidor
+            broadcast(message.encode(), sender = client) #Chama o broadcast para repassar a mensagem 
         except:
             client.close()
             break
@@ -105,10 +111,10 @@ def receive():
 
         #client.send('NICK'.encode()) # recebe o NICK, futuramente receber login?
         #nickname = client.recv(1024).decode()
-        clients.append(client)
+        clients[nickname] = client
         
         print(f'Nick do cliente é: {nickname}')
-        broadcast(f'{nickname} se juntou ao chat!'.encode())
+        broadcast(f'{nickname} se juntou ao chat!'.encode(), sender = None)
 
         client.send("Conexão estabelecida com o servidor".encode())
 
