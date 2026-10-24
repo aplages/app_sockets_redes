@@ -12,4 +12,4 @@ teste = {'a':'b',
          'c':'d'}
 
 for t in teste:
-    print(t)
+    print(teste[t])
