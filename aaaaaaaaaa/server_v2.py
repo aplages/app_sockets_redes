@@ -14,8 +14,13 @@ clients = {}                                             # Lista dos clientes
 
 
 
-def direct_mensage(client):
-    pass
+def direct_mensage(json_info, client: socket.socket):
+    origem = "user"
+    destino = json_info["destino"]
+
+    client_destino = clients[destino]
+
+    client_destino.sendall(json.loads(json_info).encode())
 
 def group_creator(client):
     client.send('CREATE_GROUP'.encode())
@@ -25,7 +30,7 @@ def group_creator(client):
 
 def broadcast(message, sender):
     """
-    Envia uma mensagem a todos os clientes.
+    Envia uma mensagem a todos os clientes.SS
     """
     for client in clients.values():
         try:
@@ -104,6 +109,8 @@ def receive():
         print(f'Conexão estabelecida com {address}')
 
         nickname = authenticator(client)
+
+        clients[nickname] = client
 
         if not nickname:
             client.close()
