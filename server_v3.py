@@ -14,6 +14,9 @@ server.listen()                                                 # Começa a acei
 clients = []                                                    # Lista dos clientes
 users = [] #Vai virar um dicionario fdp
 
+apendice = {}
+
+grupos = [] # lista dos grupos ativos [{user: socket, user: socket, user: socket}, {user: socket, user: socket}]
 
 def broadcast(message):
     """
@@ -23,24 +26,71 @@ def broadcast(message):
     cliente_origem = message['origem']
     message = json.dumps(message)
     print(message, type(message))
-    for client in clients:
+    for c in apendice.values():
         print('entrou no loop de broadcast')
-        client.sendall(message.encode())
+        c.sendall(message.encode())
+
+def create_group(jinfo: dict):
+    user = jinfo["origem"]
+    client = apendice[user]
+
+    grupo = {user:client}
+
+    grupos.append(grupo)
+
+    return
+
+def create_group2(username):
+    client = apendice[username]
+    grupo = {username: client}
+
+    grupos.append(grupo)
+
+    return grupo
 
 
+def is_active(user):
+    if user in apendice.keys():
+        return True
+    
+    return False
+
+def find_group(user):
+    for g in grupos:
+        if user in g.keys():
+            return g
+
+    return None
+
+def invite(jinfo: dict):
+    user = jinfo["origem"]
+    destino = jinfo["destino"]
+
+    if find_group(destino):
+        return # Erro, alvo já está em um grupo
+
+    group = find_group(user)
+    if not group:
+        create_group2(user)
+        group = find_group(user)
+    else:
+        client_destino = apendice[destino]
+        pass # envia o convite ao cliente
+
+    
+    
 
 
 def direct_message(jinfo: dict):
     
     user_origem = jinfo["origem"]
-    ind = users.index(user_origem)
-    client_orig: socket.socket = clients[ind]
+    client_orig: socket.socket = apendice[user_origem]
+
 
     user_dest = jinfo["destino"]
-    if user_dest in users:
-        ind = users.index(user_dest)
-        
-        client_dest: socket.socket = clients[ind]
+
+    if user_dest in apendice.keys():
+        client_dest: socket.socket = apendice[user_dest]
         print(user_dest)
         print(client_dest)
 
@@ -82,11 +132,14 @@ def handle_client(client: socket.socket):
     client.send('USER'.encode())
     username = client.recv(1024).decode()
 
-    clients.append(client)
-    users.append(username)
+    # clients.append(client)
+    # users.append(username)
+
+    apendice[username] = client
 
     client.send("OK".encode())
 
+    print(f'Conexão estabelecida com {client}-{username}. Usuários ativos atualmente:\n{apendice}')
     while True: # Inicia recebimento de JSONs
         try:
             message = json.loads(client.recv(1024).decode()) #lages doente FAZ DECODE DAS MENSAGENS PELO AMOR DE DEUS 
@@ -104,19 +157,24 @@ def handle_client(client: socket.socket):
             elif message["acao"] == "GROUP_MSG":
                 pass
 
+            elif message["acao"] == "CREATE_GROUP":
+                pass
             #elif message["acao"] == criar grupo
         except:
             break
 
 
+    apendice.pop(username)
+    
     client.close() # Fecha conexão com cliente
 
-    clients.remove(client)  # remove cliente da lista de clientes
-    users.remove(username)  # remove cliente da lista de users
+    # clients.remove(client)  # remove cliente da lista de clientes
+    # users.remove(username)  # remove cliente da lista de users
 
     print(f'cliente {username} removido.')
-    print(clients)
-    print(users)
+    #print(clients)
+    #print(users)
+    print(apendice)
 
 
 receive()

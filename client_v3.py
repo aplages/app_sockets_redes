@@ -40,7 +40,7 @@ def send():
     print('send(thread) iniciada.')
 
     print('-======= Bem-vindo ao Chat =======-')
-    print("Comandos: /s (Dizer), /p (Grupo), /w <jogador> (Sussurro)")
+    print("Comandos: /s (Dizer), /p (Grupo), /w <jogador> (Sussurro), /inv <jogador>")
     print("Digite '/sair' para encerrar.\n")
     
     canal_atual = '/s'
@@ -90,7 +90,20 @@ def send():
                 else:   # Digitou apenas /w sem um destino. Uso incorreto.
                     print('Tente novamente. /w <destino> [mensagem]')
                     continue
-    
+            elif comando in ['/invite', '/convidar', '/inv']: # convidou alguem pra um grupo
+                if len(partes) > 1: # testa se o usuario digitou um fulano pra convidar
+                    invite_partes = partes[1].split(' ', 1)
+                    alvo = invite_partes[0]
+
+                    if len(invite_partes) > 1: # testa se o user digitou algo alem do alvo
+                        print('Uso incorreto. Tente /invite <fulano>')
+                    else:
+                        send_i = threading.Thread(target=invite, args=(alvo,))
+                        send_i.start()
+
+                else:
+                    print('Uso incorreto. Tente /invite <fulano>')
+                continue
             else:   # Usou / mas nao usou nenhum comando
                 print(f'Comando desconhecido.')
                 continue
@@ -138,14 +151,23 @@ def receive():
             client.close()
             break
 
-def novo_grupo(nome=None, membros=[]):
-    nome = nome
-    membros = membros
+def novo_grupo(origem=user):
 
     grupo = {
             "acao": "CREATE_GROUP",
-            "nome_do_grupo": nome,
-            "membros": membros
+            "origem": origem
+            }
+
+    client.sendall(json.dumps(grupo).encode())
+
+    return
+
+def invite(destino, origem=user):
+
+    grupo = {
+            "acao": "INVITE",
+            "origem": origem,
+            "destino": destino
             }
 
     client.sendall(json.dumps(grupo).encode())
