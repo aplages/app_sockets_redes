@@ -7,43 +7,6 @@ user = str(input("Nome de usuário:\t"))
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
 client.connect(("127.0.0.1", 55555))                            # conecta o cliente ao servidor
 
-def novo_grupo(nome=None, membros=[]):
-    nome = nome
-    membros = membros
-
-    grupo = {
-            "acao": "CREATE_GROUP",
-            "nome_do_grupo": nome,
-            "membros": membros
-            }
-
-    client.sendall(json.dumps(grupo).encode())
-
-    return
-
-def direct_message(destino, mensagem, origem = user):
-    info = {
-        "acao": 'DIRECT',
-        "origem": origem,
-        "destino": destino,
-        "mensagem": mensagem
-    }
-    
-    client.sendall(json.dumps(info).encode())
-
-    return
-
-def group_message(grupo, mensagem, origem=user):
-    info = {
-        "acao": 'GROUP_MSG',
-        "origem": origem,
-        "destino": grupo,
-        "mensagem": mensagem
-    }
-    
-    client.sendall(json.dumps(info).encode())
-
-    return
 
 def print_msg(jinfo):
 
@@ -51,8 +14,13 @@ def print_msg(jinfo):
     print(jinfo['acao'])
     if jinfo["acao"] == "GROUP_MSG":
         print(f'[{jinfo["destino"]}] {jinfo["origem"]}: {jinfo["mensagem"]}')
+
     elif jinfo["acao"] == "DIRECT":
         print(f'{jinfo["origem"]}: {jinfo["mensagem"]}')
+
+    elif jinfo["acao"] == "BROADCAST":
+        print(f'{jinfo["origem"]}: {jinfo["mensagem"]}')
+        
     else:
         print("Erro, nenhuma acao encontrada em print_msg")
 
@@ -97,7 +65,7 @@ def receive():
             server_com = client.recv(1024).decode()
 
 
-            server_com = json.loads(server_com)
+            server_com = json.loads(server_com)     
 
             print(f"receive():\t{server_com}")
 
@@ -114,15 +82,16 @@ while True:
     print(f"START: {server_com}")
     if server_com == 'USER':
         print('user?')
-        client.sendall(user.encode())
+        client.sendall(user.encode())   # ENVIA O NOME DE USUARIO
         print('user enviado')
-        server_com = client.recv(1024).decode()
+        server_com = client.recv(1024).decode() # recebe resposta do server
         print('recbv')
-        if server_com == 'OK':
-            print("Autenticado com sucesso.\n")
+        if server_com == 'OK':  # servidor respoondeu OK?
+            print("Autenticado com sucesso.\n") # ok
             break
 
 receive_thread = threading.Thread(target=receive)
 send_thread = threading.Thread(target=send)
 
-receive_thread.start()
+receive_thread.start()  # INICIA O PROGRAMA DE RECEBIMENTO
+# send.start()
