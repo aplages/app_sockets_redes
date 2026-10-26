@@ -5,7 +5,7 @@ import json
 user = str(input("Nome de usuário:\t"))
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
-client.connect(("127.0.0.1", 55555))                            # conecta o cliente ao servidor
+client.connect(("localhost", 55555))                            # conecta o cliente ao servidor
 
 convite = None
 
@@ -14,7 +14,7 @@ def print_msg(jinfo):
     acao = jinfo["acao"]
 
     if acao == "GROUP_MSG":
-        print(f'[{jinfo["destino"]}] {jinfo["origem"]}: {jinfo["mensagem"]}')
+        print(f'[GRUPO] {jinfo["origem"]}: {jinfo["mensagem"]}')
 
     elif acao == "DIRECT":
         origem = jinfo["origem"]
@@ -28,8 +28,8 @@ def print_msg(jinfo):
 
     elif acao == "INVITE":
         global convite
-        convite = jinfo["origem"]
-        print(f'Você recebeu um convite para grupo de {jinfo["origem"]}. Use /accept para aceitar')
+        convite = jinfo["convidante"]   # define o remetente do convite recebido, para ser usado na função de aceite
+        print(f'Você recebeu um convite para grupo de {convite}. Use /accept para aceitar')
 
     elif acao == "ERRO":
         print(f'ERRO: {jinfo["mensagem"]}')
@@ -98,19 +98,29 @@ def send():
                     print('Tente novamente. /w <destino> [mensagem]')
                     continue
             elif comando in ['/invite', '/convidar', '/inv']: # convidou alguem pra um grupo
-                partes_inv = entrada.split()
-                if len(partes_inv) > 2: # testa se o usuario digitou um fulano pra convidar
-                    alvo = partes_inv[2].split(',')
-                    #if len(invite_partes) > 1: # testa se o user digitou algo alem do alvo
-                        #print('Uso incorreto. Tente /invite <fulano>')
-                    nome = partes_inv[1]
-                    send_i = threading.Thread(target=invite, args=(alvo,nome,))
-                    send_i.start()
+                if len(partes) > 1: # testa se o usuario digitou um fulano pra convidar
+                    invite_partes = partes[1].split(' ', 1)
+                    alvo = invite_partes[0]
+                
+                    if len(invite_partes) > 1: # testa se o user digitou algo alem do alvo
+                        print('Uso incorreto. Tente /invite <fulano>')
+                    else:
+                        send_i = threading.Thread(target=invite, args=(alvo,))
+                        send_i.start()
                 else:
                     print('Uso incorreto. Tente /invite <nome_do_grupo> <fulano,siclano,...>')
                 continue
-            elif comando in ['/accept', '/aceitar']:
-                continue    # aceitar convite pra grupo
+
+            elif comando in ['/accept', '/aceitar']:    # aceita o convite pra grupo; **ignora qualquer coisa depois(?)
+                send_acc = threading.Thread(target=accept_inv, args=())
+                send_acc.start()
+                continue    # volta o loop
+
+            elif comando in ['/leavep', '/leaveg', '/lp', '/lg', ]:    # sai do grupo; **ignora qualquer coisa depois(?)
+                            send_lp = threading.Thread(target=leave_group, args=())
+                            send_lp.start()
+                            continue    # volta o loop
+
             else:   # Usou / mas nao usou nenhum comando
                 print(f'Comando desconhecido.')
                 continue
@@ -126,8 +136,7 @@ def send():
 
         elif canal_atual == '/p':
             print(f'[Grupo] {user}: {mensagem}')
-            grupo = 0
-            send_t = threading.Thread(target=group_message, args=(grupo, mensagem))
+            send_t = threading.Thread(target=group_message, args=(mensagem,))
             send_t.start()
 
         elif canal_atual == '/w':
@@ -169,33 +178,45 @@ def novo_grupo(origem=user):
 
     return
 
-def invite(destino, nome, origem = user):
+def invite(destino, origem=user):
 
     grupo = {
             "acao": "INVITE",
-            "origem": origem,
-            "destino": destino,
-            "Nome" : nome
+            "convidante": origem,
+            "convidado": destino
             }
 
     client.sendall(json.dumps(grupo).encode())
 
     return
 
+def leave_group(origem=user):
+    info = {
+        "acao": "LEAVE_GROUP",
+        "origem": origem
+    }
+
+    client.sendall(json.dumps(info).encode())
+
+    return
+
+
 def accept_inv(origem=user):    # REFAZER
     global convite  # str que informa o nome do usuario do ultimo convite recebido
 
-    if convite:
+    if convite: # testa se há algum convite
 
         info = {
             "acao": "ACCEPT",
-            "origem": origem,
-            "destino": convite
+            "convidante": convite,
+            "convidado": origem
         }
 
         client.sendall(json.dumps(info).encode())
         return
-    
+
+    convite = None  # limpa os convites
+
     return
 
 def direct_message(destino, mensagem, origem=user):
@@ -213,11 +234,10 @@ def direct_message(destino, mensagem, origem=user):
 
     return
 
-def group_message(grupo, mensagem, origem=user):
+def group_message(mensagem, origem=user):
     info = {
         "acao": 'GROUP_MSG',
         "origem": origem,
-        "destino": grupo, 
         "mensagem": mensagem
     }
     

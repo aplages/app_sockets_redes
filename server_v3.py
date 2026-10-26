@@ -4,7 +4,7 @@ import json
 
 host = '0.0.0.0'
 # 0.0.0.0
-host = '127.0.0.1'
+host = '0.0.0.0'
 port = 55555
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # Inicia um servidor, configurado para (IPv4, TCP)
@@ -17,6 +17,14 @@ sockets = {}
 grupos_dict = {} #Nome do grupo + um array com os participantes do grupo 
 
 grupos = [] # lista dos grupos ativos [{user: socket, user: socket, user: socket}, {user: socket, user: socket}]
+
+
+def printa_grupos():
+    global grupos
+    for g in grupos:
+        print(g.keys())
+
+    return
 
 def broadcast(message):
     """
@@ -32,17 +40,33 @@ def broadcast(message):
         if c != sockets[cliente_origem]:
             c.sendall(message.encode())
 
-def create_group(jinfo: dict):
+"""
+def create_groupANTIGO(jinfo: dict):
     user = jinfo["origem"]
     client = sockets[user]
 
     grupo = {user:client}
+    
 
     grupos.append(grupo)
 
     return
+"""
 
-def create_group2(username):
+def leave_group(jinfo):
+    username = jinfo["origem"]
+
+    grupo: dict | None = find_group(username)
+
+    if grupo:
+        grupo.pop(username)
+        print(grupo.keys())
+    else:
+        print('grupo nao existe')
+        pass # envia um erro?
+    return # User nao está em um grupo
+
+def create_group(username):
     client = sockets[username]
     grupo = {username: client}
 
@@ -65,25 +89,51 @@ def find_group(user):
     return None
 
 def invite(jinfo: dict):
-    username_origem = jinfo["origem"]
-    username_destino = jinfo["destino"]
+    username_convidante = jinfo["convidante"]
+    username_convidado = jinfo["convidado"]
 
-    if find_group(username_destino):
+    if find_group(username_convidado):
         return # Erro, alvo já está em um grupo (O alvo não pode estar em mais de um grupo?)
 
-    group = find_group(username_origem)
+    group = find_group(username_convidante)
     if not group:
-        create_group2(username_origem)
-        group = find_group(username_origem)
+        create_group(username_convidante)
+        group = find_group(username_convidante)
 
-    client_destino: socket.socket = sockets[username_destino]
-    #print(client_destino)
+    client_convidado: socket.socket = sockets[username_convidado]
+    #print(client_convidado)
     #print(jinfo)
-    client_destino.sendall(json.dumps(jinfo).encode())
+    client_convidado.sendall(json.dumps(jinfo).encode())
 
     return
-    
-    
+
+
+def broadcast_group(jinfo:dict):
+    user_origem = jinfo['origem']
+    grupo = find_group(user_origem)
+    if not grupo:
+        print(f'O usuário nao está em nenhum grupo')
+        return
+    message = json.dumps(jinfo).encode()
+
+    for c in grupo.keys():
+        if c != user_origem:
+            grupo[c].sendall(message)
+
+    return
+
+def accept_inv(jinfo: dict):
+    convidante = jinfo["convidante"]
+    convidado = jinfo["convidado"]
+
+    grupo: dict | None = find_group(convidante)
+
+    if grupo:
+        grupo[convidado] = sockets[convidado]
+    else:
+        pass    # erro, grupo nao encontrado.
+
+    return
 
 
 def direct_message(jinfo: dict):
@@ -163,19 +213,25 @@ def handle_client(client: socket.socket):
                 inv_thread.start()
             
             elif acao == "ACCEPT":
-                pass
+                acc_thread = threading.Thread(target=accept_inv, args=(message,))
+                acc_thread.start()
             
-            elif acao == "GROUP_MSG":
-                pass
+            elif acao == "GROUP_MSG":   # 
+                pr = threading.Thread(target=broadcast_group, args=(message,))    #
+                pr.start()
             
-            elif acao == "CREATE_GROUP":
-                pass
-            #elif message["acao"] == criar grupo
+            elif acao == "LEAVE_GROUP":  # deve chamar a funcao de sair do grupo
+                lp = threading.Thread(target=leave_group, args=(message,))
+                lp.start()
 
         except:
             break
 
 
+    grupo: dict | None = find_group(username)
+    if grupo:
+        grupo.pop(username)
+    
     sockets.pop(username)
     
     client.close() # Fecha conexão com cliente

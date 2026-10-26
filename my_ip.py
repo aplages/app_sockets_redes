@@ -12,3 +12,4 @@ finally:
     s.close()
 
 print(f"O IP da rede local é: {IP_local}")
+
