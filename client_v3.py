@@ -7,24 +7,31 @@ user = str(input("Nome de usuário:\t"))
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
 client.connect(("127.0.0.1", 55555))                            # conecta o cliente ao servidor
 
+convite = None
+
 def print_msg(jinfo):
 
-    print(jinfo)
-    print(jinfo['acao'])
-    if jinfo["acao"] == "GROUP_MSG":
+    acao = jinfo["acao"]
+
+    if acao == "GROUP_MSG":
         print(f'[{jinfo["destino"]}] {jinfo["origem"]}: {jinfo["mensagem"]}')
 
-    elif jinfo["acao"] == "DIRECT":
+    elif acao == "DIRECT":
         origem = jinfo["origem"]
         if origem != user:
             print(f'De <{origem}>: {jinfo["mensagem"]}')
         else:
             print(f'Para <{jinfo["destino"]}>: {jinfo["mensagem"]}')
 
-    elif jinfo["acao"] == "BROADCAST":
+    elif acao == "BROADCAST":
         print(f'{jinfo["origem"]}: {jinfo["mensagem"]}')
 
-    elif jinfo["acao"] == "ERRO":
+    elif acao == "INVITE":
+        global convite
+        convite = jinfo["origem"]
+        print(f'Você recebeu um convite para grupo de {jinfo["origem"]}. Use /accept para aceitar')
+
+    elif acao == "ERRO":
         print(f'ERRO: {jinfo["mensagem"]}')
 
     else:
@@ -102,6 +109,8 @@ def send():
                 else:
                     print('Uso incorreto. Tente /invite <nome_do_grupo> <fulano,siclano,...>')
                 continue
+            elif comando in ['/accept', '/aceitar']:
+                continue    # aceitar convite pra grupo
             else:   # Usou / mas nao usou nenhum comando
                 print(f'Comando desconhecido.')
                 continue
@@ -171,6 +180,22 @@ def invite(destino, nome, origem = user):
 
     client.sendall(json.dumps(grupo).encode())
 
+    return
+
+def accept_inv(origem=user):    # REFAZER
+    global convite  # str que informa o nome do usuario do ultimo convite recebido
+
+    if convite:
+
+        info = {
+            "acao": "ACCEPT",
+            "origem": origem,
+            "destino": convite
+        }
+
+        client.sendall(json.dumps(info).encode())
+        return
+    
     return
 
 def direct_message(destino, mensagem, origem=user):

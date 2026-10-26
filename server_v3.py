@@ -12,11 +12,7 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)    # LIBERA A PORTA
 server.bind((host, port))                                       # Aloca o servidor no IP-host e na PORTA-port
 server.listen()                                                 # Começa a aceitar conexões
 
-clients = []                                                    # Lista dos clientes
-users = [] #Vai virar um dicionario fdp
-
-apendice = {}
-
+sockets = {}
 
 grupos_dict = {} #Nome do grupo + um array com os participantes do grupo 
 
@@ -29,14 +25,14 @@ def broadcast(message):
     print('entrou na funcao broadcast')
     cliente_origem = message['origem']
     message = json.dumps(message)
-    print(message, type(message))
-    for c in apendice.values():
-        print('entrou no loop de broadcast')
+    #print(message, type(message))
+    for c in sockets.values():
+        #print('entrou no loop de broadcast')
         c.sendall(message.encode())
 
 def create_group(jinfo: dict):
     user = jinfo["origem"]
-    client = apendice[user]
+    client = sockets[user]
 
     grupo = {user:client}
 
@@ -45,7 +41,7 @@ def create_group(jinfo: dict):
     return
 
 def create_group2(username):
-    client = apendice[username]
+    client = sockets[username]
     grupo = {username: client}
 
     grupos.append(grupo)
@@ -54,7 +50,7 @@ def create_group2(username):
 
 
 def is_active(user):
-    if user in apendice.keys():
+    if user in sockets.keys():
         return True
     
     return False
@@ -67,20 +63,23 @@ def find_group(user):
     return None
 
 def invite(jinfo: dict):
-    user = jinfo["origem"]
-    destino = jinfo["destino"]
+    username_origem = jinfo["origem"]
+    username_destino = jinfo["destino"]
 
-    if find_group(destino):
+    if find_group(username_destino):
         return # Erro, alvo já está em um grupo (O alvo não pode estar em mais de um grupo?)
 
-    group = find_group(user)
+    group = find_group(username_origem)
     if not group:
-        create_group2(user)
-        group = find_group(user)
-    else:
-        client_destino = apendice[destino]
-        pass # envia o convite ao cliente
+        create_group2(username_origem)
+        group = find_group(username_origem)
 
+    client_destino: socket.socket = sockets[username_destino]
+    #print(client_destino)
+    #print(jinfo)
+    client_destino.sendall(json.dumps(jinfo).encode())
+
+    return
     
     
 
@@ -88,15 +87,15 @@ def invite(jinfo: dict):
 def direct_message(jinfo: dict):
     
     user_origem = jinfo["origem"]
-    client_orig: socket.socket = apendice[user_origem]
+    client_orig: socket.socket = sockets[user_origem]
 
 
     user_dest = jinfo["destino"]
 
-    if user_dest in apendice.keys():
-        client_dest: socket.socket = apendice[user_dest]
-        print(user_dest)
-        print(client_dest)
+    if user_dest in sockets.keys():
+        client_dest: socket.socket = sockets[user_dest]
+        #print(user_dest)
+        #print(client_dest)
 
         client_dest.sendall(json.dumps(jinfo).encode())
     else:
@@ -136,51 +135,52 @@ def handle_client(client: socket.socket):
     client.send('USER'.encode())
     username = client.recv(1024).decode()
 
-    # clients.append(client)
-    # users.append(username)
 
-    apendice[username] = client
+    sockets[username] = client
 
     client.send("OK".encode())
 
-    print(f'Conexão estabelecida com {client}-{username}. Usuários ativos atualmente:\n{apendice}')
+    print(f'Conexão estabelecida com {client}-{username}. Usuários ativos atualmente:\n{sockets}')
     while True: # Inicia recebimento de JSONs
         try:
             message = json.loads(client.recv(1024).decode()) #lages doente FAZ DECODE DAS MENSAGENS PELO AMOR DE DEUS 
             print(f'-=-\n{message}\n-=-')
 
-
-            if message["acao"] == "DIRECT":
+            acao = message["acao"]
+            
+            if acao == "DIRECT":
                 dm = threading.Thread(target=direct_message, args=(message,))
                 dm.start()
-
-            elif message["acao"] == 'BROADCAST':
+            
+            elif acao == 'BROADCAST':
                 bd = threading.Thread(target=broadcast, args = (message,))
                 bd.start()
-            elif message['acao'] == 'INVITE':
-                iv = threading.Thread(target=invite, args=(message,))
-                iv.start()
-            elif message["acao"] == "GROUP_MSG":
+            
+            elif acao == "INVITE":
+                inv_thread = threading.Thread(target=invite, args=(message,))
+                inv_thread.start()
+            
+            elif acao == "ACCEPT":
                 pass
-
-            elif message["acao"] == "CREATE_GROUP":
+            
+            elif acao == "GROUP_MSG":
+                pass
+            
+            elif acao == "CREATE_GROUP":
                 pass
             #elif message["acao"] == criar grupo
+
         except:
             break
 
 
-    apendice.pop(username)
+    sockets.pop(username)
     
     client.close() # Fecha conexão com cliente
 
-    # clients.remove(client)  # remove cliente da lista de clientes
-    # users.remove(username)  # remove cliente da lista de users
 
     print(f'cliente {username} removido.')
-    #print(clients)
-    #print(users)
-    print(apendice)
+    print(sockets)
 
 
 receive()
