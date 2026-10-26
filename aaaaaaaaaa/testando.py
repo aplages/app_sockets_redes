@@ -1,15 +1,6 @@
-'''mensagem = '/make_group angelo_grupo [angelo,arthur,antony]'
-mensagem = mensagem.split(' ')
-mensagem = {mensagem[0]:mensagem[1],
-            'nomes':mensagem[2]}
-print(mensagem)
-print((mensagem['nomes']))
-'''
+string = '/inv grupo_angelo arthur,angelo,kaua'
 
-
-
-teste = {'a':'b',
-         'c':'d'}
-
-for t in teste:
-    print(teste[t])
+teste = string.split(' ', 1)
+teste2 = teste[1].split('< >')
+print(teste)
+print(teste2)
