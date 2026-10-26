@@ -23,12 +23,14 @@ def broadcast(message):
     Envia uma mensagem a todos os clientes ativos.
     """
     print('entrou na funcao broadcast')
+
     cliente_origem = message['origem']
     message = json.dumps(message)
     #print(message, type(message))
     for c in sockets.values():
         #print('entrou no loop de broadcast')
-        c.sendall(message.encode())
+        if c != sockets[cliente_origem]:
+            c.sendall(message.encode())
 
 def create_group(jinfo: dict):
     user = jinfo["origem"]
