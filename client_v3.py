@@ -51,8 +51,7 @@ def send():
     print("Digite '/sair' para encerrar.\n")
     
     canal_atual = '/s'
-    alvo_atual = ''
-    user = 'VOCÊ'
+    alvo_atual = '' 
     
     while True:
         # Recebe input e formata

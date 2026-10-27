@@ -57,9 +57,10 @@ def leave_group(jinfo):
     username = jinfo["origem"]
 
     grupo: dict | None = find_group(username)
-
     if grupo:
         grupo.pop(username)
+        if len(grupo) == 0:
+                grupos.remove(grupo)
         print(grupo.keys())
     else:
         print('grupo nao existe')
@@ -99,12 +100,13 @@ def invite(jinfo: dict):
     if not group:
         create_group(username_convidante)
         group = find_group(username_convidante)
-
-    client_convidado: socket.socket = sockets[username_convidado]
+    if sockets[username_convidado]: #verifica se o user a ser convidado existe no dict de sockets
+        client_convidado: socket.socket = sockets[username_convidado]
+    else:
+        pass #Vai retornar um erro
     #print(client_convidado)
     #print(jinfo)
     client_convidado.sendall(json.dumps(jinfo).encode())
-
     return
 
 
@@ -112,15 +114,16 @@ def broadcast_group(jinfo:dict):
     user_origem = jinfo['origem']
     grupo = find_group(user_origem)
     if not grupo:
-        print(f'O usuário nao está em nenhum grupo')
+        print(f'Usuário não está em nenhum grupo')
         return
+
+
     message = json.dumps(jinfo).encode()
 
-    for c in grupo.keys():
-        if c != user_origem:
-            grupo[c].sendall(message)
-
-    return
+    for c in jinfo['grupo']:
+        if c != grupos_dict[user_origem]:
+            grupos_dict[c].sendall(message)
+    pass
 
 def accept_inv(jinfo: dict):
     convidante = jinfo["convidante"]
@@ -132,8 +135,6 @@ def accept_inv(jinfo: dict):
         grupo[convidado] = sockets[convidado]
     else:
         pass    # erro, grupo nao encontrado.
-
-    return
 
 
 def direct_message(jinfo: dict):
@@ -216,8 +217,8 @@ def handle_client(client: socket.socket):
                 acc_thread = threading.Thread(target=accept_inv, args=(message,))
                 acc_thread.start()
             
-            elif acao == "GROUP_MSG":   # 
-                pr = threading.Thread(target=broadcast_group, args=(message,))    #
+            elif acao == "GROUP_MSG":   # deve chamar a funcao de broad cast de grupos
+                pr = threading.Thread(target=broadcast_group, args=(message,))    # essa funcao só printa os grupos (testagem)
                 pr.start()
             
             elif acao == "LEAVE_GROUP":  # deve chamar a funcao de sair do grupo
