@@ -53,7 +53,7 @@ def send():
     print('send(thread) iniciada.')
 
     print('-======= Bem-vindo ao Chat =======-')
-    print("Comandos: /s (Dizer), /p (Grupo), /w <jogador> (Sussurro), /inv <Nome do grupo> <jogador>")
+    print("Comandos: /s (Dizer), /p (Grupo), /w <jogador> (Sussurro), /inv <jogador>, /online (Ver os usuários online)")
     print("Digite '/sair' para encerrar.\n")
     
     canal_atual = '/s'
@@ -76,7 +76,9 @@ def send():
         if entrada.lower() == '/sair':
             print('Saindo...')
             break
-    
+        if entrada.lower() == '/online':
+            print(f'Os usuários online no momento são: {lista_local}\n')
+            continue
         if entrada[0] == '/':
             partes = entrada.split(' ', 1) # Divite a entrada no primeiro espaço
     

@@ -13,9 +13,7 @@ server.bind((host, port))                                       # Aloca o servid
 server.listen()                                                 # Começa a aceitar conexões
 
 sockets = {}
-
 grupos_dict = {} #Nome do grupo + um array com os participantes do grupo 
-
 grupos = [] # lista dos grupos ativos [{user: socket, user: socket, user: socket}, {user: socket, user: socket}]
 
 
