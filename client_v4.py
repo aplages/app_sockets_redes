@@ -7,6 +7,8 @@ user = str(input("Nome de usuário:\t"))
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
 client.connect(("localhost", 55555))                            # conecta o cliente ao servidor
 
+lista_local = []
+em_grupo = False
 convite = None
 
 def print_msg(jinfo):
@@ -33,6 +35,10 @@ def print_msg(jinfo):
 
     elif acao == "SERVER":
         print(f'{jinfo["mensagem"]}')
+
+    elif acao == 'USERS_LIST':
+        global lista_local
+        lista_local = jinfo['users']
 
     else:
         print("Erro, nenhuma acao encontrada em print_msg")
@@ -77,6 +83,9 @@ def send():
             comando = partes[0].lower()
     
             if comando in ['/s', '/p']: # Usuario digitou /s ou /p no inicio
+                if comando == '/p' and not em_grupo:
+                    print('ERRO: Você não está em nenhum grupo.')
+                    continue #Caso o usuario tente mandar msg de grupo e nao esteja em nenhum grupo
                 canal_atual = comando
                 if len(partes) > 1: # Testa se o usuario digitou algo após o comando
                     mensagem = partes[1]
@@ -87,8 +96,10 @@ def send():
                 if len(partes) > 1: # Testa se o usuario digitou um destinatario
                     sussurro_partes = partes[1].split(' ', 1)
                     alvo_atual = sussurro_partes[0] # troca o destinatário do sussurro
-                    canal_atual = '/w'
-    
+                    if verifica_alvo(alvo_atual):
+                        canal_atual = '/w'
+                    else:
+                        continue
                     if len(sussurro_partes) > 1: # testa se o usuario digitou uma mensagem após o comando
                         mensagem = sussurro_partes[1]
                     else:
@@ -177,31 +188,41 @@ def novo_grupo(origem=user):
 
     return
 
+def verifica_alvo(alvo : str):
+    global lista_local, user
+    if alvo == user:
+        print('ERRO: Você não pode mandar uma DM para si mesmo.')
+        return False
+    if alvo not in lista_local:
+        print(f'ERRO: O usuário mencionado {alvo} não foi encontrado ou está offline')
+        return False
+    return True
 def invite(destino, origem=user):
-
+    global em_grupo
     grupo = {
             "acao": "INVITE",
             "convidante": origem,
             "convidado": destino
             }
-
+    em_grupo = True
     client.sendall(json.dumps(grupo).encode())
 
     return
 
 def leave_group(origem=user):
+    global em_grupo
     info = {
         "acao": "LEAVE_GROUP",
         "origem": origem
     }
-
+    em_grupo = False
     client.sendall(json.dumps(info).encode())
 
     return
 
 
 def accept_inv(origem=user):    # REFAZER
-    global convite  # str que informa o nome do usuario do ultimo convite recebido
+    global convite, em_grupo  # str que informa o nome do usuario do ultimo convite recebido
 
     if convite: # testa se há algum convite
 
@@ -213,6 +234,7 @@ def accept_inv(origem=user):    # REFAZER
 
         client.sendall(json.dumps(info).encode())
         convite = None # limpa os convites
+        em_grupo = True
         return
     #ERRO (Nao há nenhum convite)    
     return
@@ -255,6 +277,10 @@ def broadcast_message(mensagem, origem = user):
 
 while True:
     server_com = client.recv(1024).decode()
+    if not server_com:
+        print('ERRO: Conexão recusada ou encerrada pelo servidor (provavelmente usuário já está em uso)')
+        client.close()
+        exit(1)
     print(f"START: {server_com}")
     if server_com == 'USER':
         print('user?')
