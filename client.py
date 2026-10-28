@@ -5,7 +5,11 @@ import json
 user = str(input("Nome de usuário:\t"))
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
-client.connect(("localhost", 55555))                            # conecta o cliente ao servidor
+try:
+    client.connect(("localhost", 55555))                            # conecta o cliente ao servidor
+except:
+    print('ERRO: Não foi possível conectar ao servidor.\nVerifique se o servidor está em execução e se o uso do endereço e das portas foi feito de maneira correta.')
+    exit(1)
 
 lista_local = []
 em_grupo = False
@@ -55,7 +59,7 @@ def send():
     """
     Escreve uma mensagem e envia ao servidor.
     """
-    print('send(thread) iniciada.')
+    #print('send(thread) iniciada.')
 
     print('-======= Bem-vindo ao Chat =======-')
     print("Comandos: /s (Dizer), /p (Grupo), /w <jogador> (Sussurro), /inv <jogador>, /online (Ver os usuários online)")
@@ -156,7 +160,23 @@ def send():
             elif comando == '/online':
                 print(f'Os usuários online no momento são: {lista_local}\n')
                 continue
-            
+
+            elif comando == '/help':
+
+                help_msg = '\nComandos disponíveis:\n' \
+                '/help - Ajuda - mostra essa página.\n'\
+                '/s - Fala no chat geral.\n' \
+                '/p - Fala no chat do grupo.\n' \
+                '/w <alvo> - Manda uma mensagem direta à um alvo\n' \
+                '/invite, /inv, /convidar - Convida um alvo para seu grupo.\n' \
+                '/accept, /aceitar - Aceita um convite de grupo pendente.\n' \
+                '/leavep, /leaveg, /lp, /lg - Sai do grupo atual.\n' \
+                '/sair - Sai do servidor.\n' \
+                '/online - Mostra os usuários atualmente online.\n' \
+                '=)\n'
+
+                print(help_msg)
+                continue
             else:   # Usou / mas nao usou nenhum comando
                 print(f'ERRO: Comando desconhecido.')
                 continue
@@ -178,7 +198,7 @@ def send():
             #send_t.start()
 
         elif canal_atual == '/w':
-            print(f'Para <{alvo_atual}>: {mensagem}')
+            #print(f'Para <{alvo_atual}>: {mensagem}')
             direct_message(alvo_atual, mensagem)
             #send_t = threading.Thread(target=direct_message, args=(alvo_atual, mensagem))
             #send_t.start()
@@ -212,12 +232,12 @@ def receive():
             
             #server_com = json.loads(server_com)     
 
-            print(f"receive():\t{server_com}")
+            #print(f"receive():\t{server_com}")
 
             #printer_thread = threading.Thread(target=print_msg, args=(server_com,))
             #printer_thread.start()
 
-            print_msg(server_com)
+            #print_msg(server_com)
             
         except:
             print('Conexão encerrada.')
@@ -269,7 +289,7 @@ def accept_inv(origem=user):    # REFAZER
 
     client.sendall(f'{json.dumps(info)}\n'.encode())
     convite = None # limpa os convites
-    em_grupo = True
+    #em_grupo = True
     return
 
 def direct_message(destino, mensagem, origem=user):
@@ -280,7 +300,7 @@ def direct_message(destino, mensagem, origem=user):
         "mensagem": mensagem
     }
     
-    client.sendall(json.dumps(info).encode())
+    client.sendall((json.dumps(info)+'\n').encode())
 
     # CRIAR ERRO PARA USUARIO NAO ENCONTRADO:
     # Print('Erro, usuário não encontrado.')
@@ -321,7 +341,7 @@ while not conecta:
     server_com = server_com.strip().split('\n')
     #print(server_com)
     for i in server_com:
-        print('START:'+i)
+        #print('START:'+i)
         if i == 'USER':
             #print('user?')
             client.sendall((user+'\n').encode())   # ENVIA O NOME DE USUARIO

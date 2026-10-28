@@ -30,14 +30,17 @@ def broadcast(message):
     """
     #print('entrou na funcao broadcast')
 
-    cliente_origem = message['origem']
+    #cliente_origem = message['origem']
     message = f'{json.dumps(message)}\n'
     #print(message, type(message))
     copia = sockets.copy()
     for c in copia.values():
         #print('entrou no loop de broadcast')
         #if c != copia[cliente_origem]:
-        c.sendall(message.encode())
+        try:
+            c.sendall(message.encode())
+        except:
+            print(f'User/Cliente {c} não recebeu os dados.')
 
 """
 def create_groupANTIGO(jinfo: dict):
@@ -60,6 +63,8 @@ def leave_group(jinfo):
         grupo.pop(username)
         if len(grupo) == 0:
                 grupos.remove(grupo)   # remove o grupo
+        else:
+            server_msg(f"[GRUPO]: {username} saiu do grupo", list(grupo.keys()))
         print(grupo.keys())
     else:
         print('grupo nao existe')
@@ -122,6 +127,7 @@ def invite(jinfo: dict):
 def broadcast_group(jinfo:dict):
     user_origem = jinfo['origem']
     grupo = find_group(user_origem)
+    
     if not grupo:
         print(f'Usuário não está em nenhum grupo')
         mensagem = 'ERRO: Você não está em um grupo.'
@@ -129,7 +135,7 @@ def broadcast_group(jinfo:dict):
         return
     
     message = f'{json.dumps(jinfo)}\n'.encode()
-    for c in list(grupo.keys().copy()):  #uma cópia para evitar o erro de caso o dicionario de membros mudar (um convite aceitou ou um membro saiu) e mudar o tamanho do grupo enquanto uma mensagem é enviada.
+    for c in list(grupo.keys()):  #uma cópia para evitar o erro de caso o dicionario de membros mudar (um convite aceitou ou um membro saiu) e mudar o tamanho do grupo enquanto uma mensagem é enviada.
         #if c != user_origem:
         socket_membro = grupo[c]
         try:
@@ -229,8 +235,10 @@ def broadcast_user():
         'users': lista}
                 )}\n'
     for s in list(sockets.values()):
-        s.sendall(mensagem.encode())
-
+        try:
+            s.sendall(mensagem.encode())
+        except:
+            print(f'Cliene {s} não recebeu a lista de usuários.')
 
 
 def handle_client(client: socket.socket):
@@ -251,67 +259,71 @@ def handle_client(client: socket.socket):
 
 
     print(f'Conexão estabelecida com {client}-{username}. Usuários ativos atualmente:\n{sockets}')
-    while True: # Inicia recebimento de JSONs
+
+    conectado = True
+    while conectado: # Inicia recebimento de JSONs
         try:
-            message = client.recv(1024).decode()    # recebe msg do cliente
+            data = client.recv(1024).decode().strip().split('\n')    # recebe msg do cliente
 
-            try:
-                message = json.loads(message) # tenta carregar json
-            except json.JSONDecodeError:
-                server_msg('ERRO: Formato inválido ou pacotes foram corrompidos', [username])
-                # não eh um json
-                continue
-            print(f'-=-\n{message}\n-=-')
+            for message in data:
+                try:
+                    message = json.loads(message) # tenta carregar json
+                except json.JSONDecodeError:
+                    server_msg('ERRO: Formato inválido ou pacotes foram corrompidos', [username])
+                    # não eh um json
+                    conectado = False
+                    break
+                print(f'-=-\n{message}\n-=-')
 
-            acao = message["acao"]
-            
-            if acao == "DIRECT":
-                #dm = threading.Thread(target=direct_message, args=(message,))
-                #dm.start()
-
-                direct_message(message)
-            
-            elif acao == 'BROADCAST':
-                broadcast(message)
-
-                #bd = threading.Thread(target=broadcast, args = (message,))
-                #bd.start()
-            
-            elif acao == "INVITE":
-                invite(message)
-
-                #inv_thread = threading.Thread(target=invite, args=(message,))
-                #inv_thread.start()
-            
-            elif acao == "ACCEPT":
-                accept_inv(message)
-
-                #acc_thread = threading.Thread(target=accept_inv, args=(message,))
-                #acc_thread.start()
-            
-            elif acao == "GROUP_MSG":   # deve chamar a funcao de broad cast de grupos
-                broadcast_group(message)
-
-                #pr = threading.Thread(target=broadcast_group, args=(message,))    # essa funcao só printa os grupos (testagem)
-                #pr.start()
-            
-            elif acao == "LEAVE_GROUP":  # deve chamar a funcao de sair do grupo
-                leave_group(message)
+                acao = message["acao"]
                 
-                #lp = threading.Thread(target=leave_group, args=(message,))
-                #lp.start()
+                if acao == "DIRECT":
+                    #dm = threading.Thread(target=direct_message, args=(message,))
+                    #dm.start()
 
-            elif acao == "USER_LIST": # deve enviar a lista de usuarios
-                broadcast_user()
+                    direct_message(message)
+                
+                elif acao == 'BROADCAST':
+                    broadcast(message)
 
-                #ul = threading.Thread(target=broadcast_user, args=())
-                #ul.start()
+                    #bd = threading.Thread(target=broadcast, args = (message,))
+                    #bd.start()
+                
+                elif acao == "INVITE":
+                    invite(message)
 
-            elif acao == "LEAVE_SERVER":
-                break
+                    #inv_thread = threading.Thread(target=invite, args=(message,))
+                    #inv_thread.start()
+                
+                elif acao == "ACCEPT":
+                    accept_inv(message)
+
+                    #acc_thread = threading.Thread(target=accept_inv, args=(message,))
+                    #acc_thread.start()
+                
+                elif acao == "GROUP_MSG":   # deve chamar a funcao de broad cast de grupos
+                    broadcast_group(message)
+
+                    #pr = threading.Thread(target=broadcast_group, args=(message,))    # essa funcao só printa os grupos (testagem)
+                    #pr.start()
+                
+                elif acao == "LEAVE_GROUP":  # deve chamar a funcao de sair do grupo
+                    leave_group(message)
+                    
+                    #lp = threading.Thread(target=leave_group, args=(message,))
+                    #lp.start()
+
+                elif acao == "USER_LIST": # deve enviar a lista de usuarios
+                    broadcast_user()
+
+                    #ul = threading.Thread(target=broadcast_user, args=())
+                    #ul.start()
+
+                elif acao == "LEAVE_SERVER":
+                    conectado = False
 
         except :
-            break
+            conectado = False
 
 
     grupo: dict | None = find_group(username)
@@ -319,6 +331,8 @@ def handle_client(client: socket.socket):
         grupo.pop(username)
         if len(grupo) == 0:
             grupos.remove(grupo)
+        else:
+            server_msg(f"[GRUPO]: {username} saiu do grupo", list(grupo.keys()))
     
     sockets.pop(username)
     broadcast_user()
