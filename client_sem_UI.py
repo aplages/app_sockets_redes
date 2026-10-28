@@ -15,7 +15,7 @@ lista_local = []
 em_grupo = False
 convite = None
 
-def print_msg(lista):
+def trata_msg(lista):
 
     for jinfo in lista:
         jinfo = json.loads(jinfo)
@@ -50,7 +50,7 @@ def print_msg(lista):
             lista_local = jinfo['users']
 
         else:
-            print("Erro, nenhuma acao encontrada em print_msg")
+            print("Erro, nenhuma acao encontrada em trata_msg")
 
     return
 
@@ -228,13 +228,13 @@ def receive():
             for j in server_com:
                 j = json.loads(j)
             
-            print_msg(server_com)   # trata a mensagem - NAO APAGA ESSA LINHA
+            trata_msg(server_com)   # trata a mensagem - NAO APAGA ESSA LINHA
             
             #server_com = json.loads(server_com)     
 
             #print(f"receive():\t{server_com}")
 
-            #printer_thread = threading.Thread(target=print_msg, args=(server_com,))
+            #printer_thread = threading.Thread(target=trata_msg, args=(server_com,))
             #printer_thread.start()
 
             
