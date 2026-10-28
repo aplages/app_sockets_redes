@@ -28,16 +28,16 @@ def broadcast(message):
     """
     Envia uma mensagem a todos os clientes ativos.
     """
-    print('entrou na funcao broadcast')
+    #print('entrou na funcao broadcast')
 
     cliente_origem = message['origem']
-    message = json.dumps(message)
+    message = f'{json.dumps(message)}\n'
     #print(message, type(message))
-    copia = sockets 
+    copia = sockets.copy()
     for c in copia.values():
         #print('entrou no loop de broadcast')
-        if c != copia[cliente_origem]:
-            c.sendall(message.encode())
+        #if c != copia[cliente_origem]:
+        c.sendall(message.encode())
 
 """
 def create_groupANTIGO(jinfo: dict):
@@ -94,23 +94,28 @@ def invite(jinfo: dict):
     username_convidante = jinfo["convidante"]
     username_convidado = jinfo["convidado"]
 
+
+    if not username_convidado in sockets: #verifica se o user a ser convidado existe no dict de sockets
+        mensagem = 'ERRO: O usuário que está sendo convidado não existe ou não está online.'
+        #print(mensagem)
+        server_msg(mensagem, [username_convidante])
+        return
+    
+    client_convidado: socket.socket = sockets[username_convidado]
     if find_group(username_convidado):
+        mensagem = 'ERRO: O usuário convidado já está em um grupo.'
+        server_msg(mensagem, [username_convidante])
         return # Erro, alvo já está em um grupo (O alvo não pode estar em mais de um grupo?)
 
     group = find_group(username_convidante)
     if not group:
         create_group(username_convidante)
         group = find_group(username_convidante)
-    if username_convidado in sockets: #verifica se o user a ser convidado existe no dict de sockets
-        client_convidado: socket.socket = sockets[username_convidado]
-    else:
-        mensagem = 'ERRO: O usuário que está sendo convidado não existe ou não está online.'
-        print(mensagem)
-        server_msg(mensagem, [username_convidante])
-        return
+    
     #print(client_convidado)
     #print(jinfo)
-    client_convidado.sendall(json.dumps(jinfo).encode())
+    client_convidado.sendall(f'{json.dumps(jinfo)}\n'.encode())
+    server_msg("Convite enviado", [username_convidante])
     return
 
 
@@ -123,11 +128,15 @@ def broadcast_group(jinfo:dict):
         server_msg(mensagem, [user_origem])
         return
     
-    message = json.dumps(jinfo).encode()
-    for c in list(grupo.keys()):  #uma cópia para evitar o erro de caso o dicionario de membros mudar (um convite aceitou ou um membro saiu) e mudar o tamanho do grupo enquanto uma mensagem é enviada.
-        if c != user_origem:
-            socket_membro = grupo[c]
+    message = f'{json.dumps(jinfo)}\n'.encode()
+    for c in list(grupo.keys().copy()):  #uma cópia para evitar o erro de caso o dicionario de membros mudar (um convite aceitou ou um membro saiu) e mudar o tamanho do grupo enquanto uma mensagem é enviada.
+        #if c != user_origem:
+        socket_membro = grupo[c]
+        try:
             socket_membro.sendall(message)
+        except:
+            print(f"ERRO: Cliente {c} não recebeu a mensagem. Socket: {grupo[c]}")
+    return
 
 def accept_inv(jinfo: dict):
     convidante = jinfo["convidante"]
@@ -136,25 +145,29 @@ def accept_inv(jinfo: dict):
     grupo: dict | None = find_group(convidante)
 
     if grupo:
+        #print('grupo(convidante) = True')
         grupo[convidado] = sockets[convidado]
+        #print(grupo)
+        mensagem = f'[GRUPO]: {convidado} se juntou ao grupo.'
+        #print(grupo.keys())
+        server_msg(mensagem, grupo.keys())
     else:
+        #print('gr(convidante) = false')
         mensagem = 'ERRO: Grupo não encontrado'
         print(mensagem)
         server_msg(mensagem,[convidado])
 
+    return
 
-def verif(jinfo):
-    pass
 
 def server_msg(msg: str, users_list: list):
     
-    data = json.dumps(
+    data = f'{json.dumps(
         {
         "acao": "SERVER",
         "mensagem": msg
     }
-    )
-
+    )}\n'
     
     if not users_list:
         pass
@@ -162,23 +175,8 @@ def server_msg(msg: str, users_list: list):
     for u in users_list:
         try:
             sockets[u].sendall(data.encode())
-        except socket.gaierror as e:
-            print(f"🌐 DNS / Address resolution error: {e}")
-            #sys.exit(1)
-
-        except socket.timeout as e:
-            print(f"⏱️ Connection timed out: {e}")
-            #sys.exit(1)
-
-        except socket.error as e:
-            # Catch-all for other socket/OS errors (e.g., ConnectionRefusedError)
-            print(f"❌ General socket error: {e}")
-            #sys.exit(1)
-
-        finally:
-            # Always ensure the socket is cleaned up
-            print("Closing socket connection.")
-            #s.close()
+        except:
+            pass
     
 
 def direct_message(jinfo: dict):
@@ -193,8 +191,11 @@ def direct_message(jinfo: dict):
         client_dest: socket.socket = sockets[user_dest]
         #print(user_dest)
         #print(client_dest)
-
-        client_dest.sendall(json.dumps(jinfo).encode())
+        try:
+            client_dest.sendall(f'{json.dumps(jinfo)}\n'.encode())
+            client_orig.sendall(f'{json.dumps(jinfo)}\n'.encode())
+        except:
+            print("Cliente não recebeu a mensagem")
     else:
         print('Cliente nao existe')
         mensagem = 'ERRO: O cliente que você está tentando enviar mensagem não existe.'
@@ -211,9 +212,9 @@ def receive():
     print("Servidor iniciado.")
     while True:
         client, address = server.accept()                       # Recebe o socket e o IP do cleinte (a função retorna uma tupla)
-        print(f'Conexão estabelecida com {address}')
+        print(f'Conexão estabelecida com {address}\n')
 
-        client.sendall("Conexão estabelecida com o servidor".encode())
+        client.sendall("Conexão estabelecida com o servidor\n".encode())
 
 
         thread = threading.Thread(target=handle_client, args=(client,))
@@ -223,10 +224,12 @@ def broadcast_user():
     lista = []
     for c in sockets.keys():
         lista.append(c)
-    mensagem = {'acao': 'USERS_LIST',
-                'users': lista}
+    mensagem = f'{json.dumps(
+        {'acao': 'USERS_LIST',
+        'users': lista}
+                )}\n'
     for s in list(sockets.values()):
-        s.sendall(json.dumps(mensagem).encode())
+        s.sendall(mensagem.encode())
 
 
 
@@ -234,74 +237,88 @@ def handle_client(client: socket.socket):
     """
     Vai lidar com o recebimento de mensagens de diferentes clientes e suas threads
     """
-    client.send('USER'.encode())
-    username = client.recv(1024).decode()
+    client.send('USER\n'.encode())
+    username = client.recv(1024).decode().strip().split('\n')[0]
+    
     if username in sockets.keys():
         client.close() #Trata caso o username já exista.
         return
 
     sockets[username] = client
-    client.send("OK".encode())
-    broadcast_user()
+    client.send("OK\n".encode())
+    print('enviado OK')
+    #broadcast_user()
+
 
     print(f'Conexão estabelecida com {client}-{username}. Usuários ativos atualmente:\n{sockets}')
     while True: # Inicia recebimento de JSONs
         try:
-            message = json.loads(client.recv(1024).decode()) #lages doente FAZ DECODE DAS MENSAGENS PELO AMOR DE DEUS 
+            message = client.recv(1024).decode()    # recebe msg do cliente
+
+            try:
+                message = json.loads(message) # tenta carregar json
+            except json.JSONDecodeError:
+                server_msg('ERRO: Formato inválido ou pacotes foram corrompidos', [username])
+                # não eh um json
+                continue
             print(f'-=-\n{message}\n-=-')
 
             acao = message["acao"]
             
             if acao == "DIRECT":
-                dm = threading.Thread(target=direct_message, args=(message,))
-                dm.start()
+                #dm = threading.Thread(target=direct_message, args=(message,))
+                #dm.start()
+
+                direct_message(message)
             
             elif acao == 'BROADCAST':
-                bd = threading.Thread(target=broadcast, args = (message,))
-                bd.start()
+                broadcast(message)
+
+                #bd = threading.Thread(target=broadcast, args = (message,))
+                #bd.start()
             
             elif acao == "INVITE":
-                inv_thread = threading.Thread(target=invite, args=(message,))
-                inv_thread.start()
+                invite(message)
+
+                #inv_thread = threading.Thread(target=invite, args=(message,))
+                #inv_thread.start()
             
             elif acao == "ACCEPT":
-                acc_thread = threading.Thread(target=accept_inv, args=(message,))
-                acc_thread.start()
+                accept_inv(message)
+
+                #acc_thread = threading.Thread(target=accept_inv, args=(message,))
+                #acc_thread.start()
             
             elif acao == "GROUP_MSG":   # deve chamar a funcao de broad cast de grupos
-                pr = threading.Thread(target=broadcast_group, args=(message,))    # essa funcao só printa os grupos (testagem)
-                pr.start()
+                broadcast_group(message)
+
+                #pr = threading.Thread(target=broadcast_group, args=(message,))    # essa funcao só printa os grupos (testagem)
+                #pr.start()
             
             elif acao == "LEAVE_GROUP":  # deve chamar a funcao de sair do grupo
-                lp = threading.Thread(target=leave_group, args=(message,))
-                lp.start()
+                leave_group(message)
+                
+                #lp = threading.Thread(target=leave_group, args=(message,))
+                #lp.start()
 
-        except socket.gaierror as e:
-            print(f"🌐 DNS / Address resolution error: {e}")
+            elif acao == "USER_LIST": # deve enviar a lista de usuarios
+                broadcast_user()
+
+                #ul = threading.Thread(target=broadcast_user, args=())
+                #ul.start()
+
+            elif acao == "LEAVE_SERVER":
+                break
+
+        except :
             break
-            #sys.exit(1)
-
-        except socket.timeout as e:
-            print(f"⏱️ Connection timed out: {e}")
-            break
-            #sys.exit(1)
-
-        except socket.error as e:
-            # Catch-all for other socket/OS errors (e.g., ConnectionRefusedError)
-            print(f"❌ General socket error: {e}")
-            break
-            #sys.exit(1)
-
-        finally:
-            # Always ensure the socket is cleaned up
-            print("Closing socket connection.")
-            #s.close()
-        
 
 
     grupo: dict | None = find_group(username)
     if grupo:
         grupo.pop(username)
+        if len(grupo) == 0:
+            grupos.remove(grupo)
     
     sockets.pop(username)
     broadcast_user()

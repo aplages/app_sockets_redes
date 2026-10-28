@@ -11,37 +11,42 @@ lista_local = []
 em_grupo = False
 convite = None
 
-def print_msg(jinfo):
+def print_msg(lista):
 
-    acao = jinfo["acao"]
+    for jinfo in lista:
+        jinfo = json.loads(jinfo)
+        acao = jinfo["acao"]
 
-    if acao == "GROUP_MSG":
-        print(f'[GRUPO] {jinfo["origem"]}: {jinfo["mensagem"]}')
+        if acao == "GROUP_MSG":
+            print(f'[GRUPO] - {jinfo["origem"]}: {jinfo["mensagem"]}')
 
-    elif acao == "DIRECT":
-        origem = jinfo["origem"]
-        if origem != user:
-            print(f'De <{origem}>: {jinfo["mensagem"]}')
+        elif acao == "DIRECT":
+            origem = jinfo["origem"]
+            if origem != user:
+                print(f'W - De <{origem}>: {jinfo["mensagem"]}')
+            else:
+                print(f'W - Para <{jinfo["destino"]}>: {jinfo["mensagem"]}')
+
+        elif acao == "BROADCAST":
+            print(f'Geral - {jinfo["origem"]}: {jinfo["mensagem"]}')
+
+        elif acao == "INVITE":
+            global convite
+            convite = jinfo["convidante"]   # define o remetente do convite recebido, para ser usado na função de aceite
+            print(f'Você recebeu um convite para grupo de {convite}. Use /accept para aceitar')
+
+        elif acao == "SERVER":
+            print(f'{jinfo["mensagem"]}')
+            if "se juntou ao grupo." in jinfo["mensagem"]:  # gambiarra extrema
+                global em_grupo
+                em_grupo = True
+
+        elif acao == 'USERS_LIST':
+            global lista_local
+            lista_local = jinfo['users']
+
         else:
-            print(f'Para <{jinfo["destino"]}>: {jinfo["mensagem"]}')
-
-    elif acao == "BROADCAST":
-        print(f'{jinfo["origem"]}: {jinfo["mensagem"]}')
-
-    elif acao == "INVITE":
-        global convite
-        convite = jinfo["convidante"]   # define o remetente do convite recebido, para ser usado na função de aceite
-        print(f'Você recebeu um convite para grupo de {convite}. Use /accept para aceitar')
-
-    elif acao == "SERVER":
-        print(f'{jinfo["mensagem"]}')
-
-    elif acao == 'USERS_LIST':
-        global lista_local
-        lista_local = jinfo['users']
-
-    else:
-        print("Erro, nenhuma acao encontrada em print_msg")
+            print("Erro, nenhuma acao encontrada em print_msg")
 
     return
 
@@ -55,6 +60,10 @@ def send():
     print('-======= Bem-vindo ao Chat =======-')
     print("Comandos: /s (Dizer), /p (Grupo), /w <jogador> (Sussurro), /inv <jogador>, /online (Ver os usuários online)")
     print("Digite '/sair' para encerrar.\n")
+    global user, em_grupo
+
+    client.sendall((json.dumps({"acao": "USER_LIST","origem": user})+'\n').encode())
+    
     
     canal_atual = '/s'
     alvo_atual = '' 
@@ -73,12 +82,6 @@ def send():
         if not entrada: # Se a entrada for vazia, vai pro inicio do loop
             continue
     
-        if entrada.lower() == '/sair':
-            print('Saindo...')
-            break
-        if entrada.lower() == '/online':
-            print(f'Os usuários online no momento são: {lista_local}\n')
-            continue
         if entrada[0] == '/':
             partes = entrada.split(' ', 1) # Divite a entrada no primeiro espaço
     
@@ -107,34 +110,55 @@ def send():
                     else:
                         continue    # digitou apenas o comando e um destino. troca o destino do sussurro e inicia o loop
                 else:   # Digitou apenas /w sem um destino. Uso incorreto.
-                    print('Tente novamente. /w <destino> [mensagem]')
+                    print('ERRO: Utilize a formatação: /w <destino> [mensagem]')
                     continue
             elif comando in ['/invite', '/convidar', '/inv']: # convidou alguem pra um grupo
                 if len(partes) > 1: # testa se o usuario digitou um fulano pra convidar
                     invite_partes = partes[1].split(' ', 1)
                     alvo = invite_partes[0]
-                
-                    if len(invite_partes) > 1: # testa se o user digitou algo alem do alvo
-                        print('Uso incorreto. Tente /invite <fulano>')
+                    if verifica_alvo(alvo):
+                        if len(invite_partes) > 1: # testa se o user digitou algo alem do alvo
+                            print('Uso incorreto. Tente /invite <fulano>')
+                        elif alvo == user:
+                            print('Uso incorreto, você não pode convidar a si mesmo. Tente /invite <fulano>')
+                        else:
+                            invite(alvo)
+                            #send_i = threading.Thread(target=invite, args=(alvo,))
+                            #send_i.start()
                     else:
-                        send_i = threading.Thread(target=invite, args=(alvo,))
-                        send_i.start()
+                        print('O alvo não está online.')
                 else:
-                    print('Uso incorreto. Tente /invite <nome_do_grupo> <fulano,siclano,...>')
+                    print('Uso incorreto. Tente /invite <fulano>')
                 continue
 
             elif comando in ['/accept', '/aceitar']:    # aceita o convite pra grupo; **ignora qualquer coisa depois(?)
-                send_acc = threading.Thread(target=accept_inv, args=())
-                send_acc.start()
+                if em_grupo:
+                    print("Você já está em um grupo.")
+                elif not convite:
+                    print("Não há nenhum convite.")
+                else:
+                    accept_inv()
+                    #send_acc = threading.Thread(target=accept_inv, args=())
+                    #send_acc.start()
                 continue    # volta o loop
 
             elif comando in ['/leavep', '/leaveg', '/lp', '/lg', ]:    # sai do grupo; **ignora qualquer coisa depois(?)
-                            send_lp = threading.Thread(target=leave_group, args=())
-                            send_lp.start()
+                            leave_group()
+                            #send_lp = threading.Thread(target=leave_group, args=())
+                            #send_lp.start()
+                            canal_atual = '/s'
                             continue    # volta o loop
 
+            elif comando == '/sair':
+                print('Saindo...')
+                break
+
+            elif comando == '/online':
+                print(f'Os usuários online no momento são: {lista_local}\n')
+                continue
+            
             else:   # Usou / mas nao usou nenhum comando
-                print(f'Comando desconhecido.')
+                print(f'ERRO: Comando desconhecido.')
                 continue
     
         else:   # Não é um comando, então é uma mensagem no canal atual
@@ -142,19 +166,31 @@ def send():
     
         # Exibe no terminal
         if canal_atual == '/s':
-            print(f'[Geral] {user}: {mensagem}')
-            send_t = threading.Thread(target=broadcast_message, args=(mensagem,))
-            send_t.start()
+            #print(f'[Geral] {user}: {mensagem}')
+            broadcast_message(mensagem)
+            #send_t = threading.Thread(target=broadcast_message, args=(mensagem,))
+            #send_t.start()
 
         elif canal_atual == '/p':
-            print(f'[Grupo] {user}: {mensagem}')
-            send_t = threading.Thread(target=group_message, args=(mensagem,))
-            send_t.start()
+            #print(f'[Grupo] {user}: {mensagem}')
+            group_message(mensagem)
+            #send_t = threading.Thread(target=group_message, args=(mensagem,))
+            #send_t.start()
 
         elif canal_atual == '/w':
             print(f'Para <{alvo_atual}>: {mensagem}')
-            send_t = threading.Thread(target=direct_message, args=(alvo_atual, mensagem))
-            send_t.start()
+            direct_message(alvo_atual, mensagem)
+            #send_t = threading.Thread(target=direct_message, args=(alvo_atual, mensagem))
+            #send_t.start()
+
+
+    client.sendall((json.dumps(
+        {
+            "acao": "LEAVE_SERVER",
+            "origem": user
+        }
+    )+'\n').encode())
+    client.close()
 
     print('Saiu da conversa.')
 
@@ -167,28 +203,26 @@ def receive():
         try:
             server_com = client.recv(1024).decode()
 
+            server_com = server_com.strip().split('\n')
 
-            server_com = json.loads(server_com)     
+            for j in server_com:
+                j = json.loads(j)
+            
+            
+            
+            #server_com = json.loads(server_com)     
 
             print(f"receive():\t{server_com}")
 
-            printer_thread = threading.Thread(target=print_msg, args=(server_com,))
-            printer_thread.start()
+            #printer_thread = threading.Thread(target=print_msg, args=(server_com,))
+            #printer_thread.start()
+
+            print_msg(server_com)
+            
         except:
-            print('Erro!!')
+            print('Conexão encerrada.')
             client.close()
             break
-
-def novo_grupo(origem=user):
-
-    grupo = {
-            "acao": "CREATE_GROUP",
-            "origem": origem
-            }
-
-    client.sendall(json.dumps(grupo).encode())
-
-    return
 
 def verifica_alvo(alvo : str):
     global lista_local, user
@@ -199,6 +233,7 @@ def verifica_alvo(alvo : str):
         print(f'ERRO: O usuário mencionado {alvo} não foi encontrado ou está offline')
         return False
     return True
+
 def invite(destino, origem=user):
     global em_grupo
     grupo = {
@@ -206,8 +241,7 @@ def invite(destino, origem=user):
             "convidante": origem,
             "convidado": destino
             }
-    em_grupo = True
-    client.sendall(json.dumps(grupo).encode())
+    client.sendall(f'{json.dumps(grupo)}\n'.encode())
 
     return
 
@@ -218,7 +252,8 @@ def leave_group(origem=user):
         "origem": origem
     }
     em_grupo = False
-    client.sendall(json.dumps(info).encode())
+
+    client.sendall(f'{json.dumps(info)}\n'.encode())
 
     return
 
@@ -226,19 +261,15 @@ def leave_group(origem=user):
 def accept_inv(origem=user):    # REFAZER
     global convite, em_grupo  # str que informa o nome do usuario do ultimo convite recebido
 
-    if convite: # testa se há algum convite
+    info = {
+        "acao": "ACCEPT",
+        "convidante": convite,
+        "convidado": origem
+    }
 
-        info = {
-            "acao": "ACCEPT",
-            "convidante": convite,
-            "convidado": origem
-        }
-
-        client.sendall(json.dumps(info).encode())
-        convite = None # limpa os convites
-        em_grupo = True
-        return
-    #ERRO (Nao há nenhum convite)    
+    client.sendall(f'{json.dumps(info)}\n'.encode())
+    convite = None # limpa os convites
+    em_grupo = True
     return
 
 def direct_message(destino, mensagem, origem=user):
@@ -263,7 +294,7 @@ def group_message(mensagem, origem=user):
         "mensagem": mensagem
     }
     
-    client.sendall(json.dumps(info).encode())
+    client.sendall(f'{json.dumps(info)}\n'.encode())
 
     # CRIAR ERRO PARA GRUPO NAO ENCONTRADO:
     # Print('Erro, você não está em um grupo.')
@@ -274,28 +305,38 @@ def broadcast_message(mensagem, origem = user):
     info = {"acao": "BROADCAST",
             "origem": origem,
             "mensagem": mensagem}
-    client.sendall(json.dumps(info).encode())
+    client.sendall(f'{json.dumps(info)}\n'.encode())
 
+conecta = False
 
-while True:
+while not conecta:
     server_com = client.recv(1024).decode()
+    
     if not server_com:
         print('ERRO: Conexão recusada ou encerrada pelo servidor (provavelmente usuário já está em uso)')
         client.close()
         exit(1)
-    print(f"START: {server_com}")
-    if server_com == 'USER':
-        print('user?')
-        client.sendall(user.encode())   # ENVIA O NOME DE USUARIO
-        print('user enviado')
-        server_com = client.recv(1024).decode() # recebe resposta do server
-        print('recbv')
-        if server_com == 'OK':  # servidor respoondeu OK?
+    #print(f"START: {server_com}")
+
+    server_com = server_com.strip().split('\n')
+    #print(server_com)
+    for i in server_com:
+        print('START:'+i)
+        if i == 'USER':
+            #print('user?')
+            client.sendall((user+'\n').encode())   # ENVIA O NOME DE USUARIO
+            #print('user enviado')
+    
+            #server_com = client.recv(1024).decode().strip().split('\n') # recebe resposta do server
+            #print('recbv')
+
+        elif i == 'OK':  # servidor respoondeu OK?
             print("Autenticado com sucesso.\n") # ok
-            break
+            conecta = True  # quebra o loop while
 
 receive_thread = threading.Thread(target=receive)
 send_thread = threading.Thread(target=send)
 
 receive_thread.start()  # INICIA O PROGRAMA DE RECEBIMENTO
 send_thread.start() # INICIA O PROGRAMA DE ENVIO
+
