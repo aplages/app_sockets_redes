@@ -228,7 +228,7 @@ def receive():
             for j in server_com:
                 j = json.loads(j)
             
-            
+            print_msg(server_com)   # trata a mensagem - NAO APAGA ESSA LINHA
             
             #server_com = json.loads(server_com)     
 
@@ -237,7 +237,7 @@ def receive():
             #printer_thread = threading.Thread(target=print_msg, args=(server_com,))
             #printer_thread.start()
 
-            #print_msg(server_com)
+            
             
         except:
             print('Conexão encerrada.')
@@ -359,4 +359,3 @@ send_thread = threading.Thread(target=send)
 
 receive_thread.start()  # INICIA O PROGRAMA DE RECEBIMENTO
 send_thread.start() # INICIA O PROGRAMA DE ENVIO
-

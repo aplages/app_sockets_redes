@@ -67,7 +67,7 @@ def leave_group(jinfo):
             server_msg(f"[GRUPO]: {username} saiu do grupo", list(grupo.keys()))
         print(grupo.keys())
     else:
-        print('grupo nao existe')
+        print('Grupo nao existe')
         mensagem = 'ERRO: Você não está em nenhum grupo.'
         server_msg(mensagem,[username])
         return # User nao está em um grupo
@@ -227,9 +227,8 @@ def receive():
         thread.start()
 
 def broadcast_user():
-    lista = []
-    for c in sockets.keys():
-        lista.append(c)
+    lista = list(sockets.keys())
+
     mensagem = f'{json.dumps(
         {'acao': 'USERS_LIST',
         'users': lista}
@@ -254,11 +253,12 @@ def handle_client(client: socket.socket):
 
     sockets[username] = client
     client.send("OK\n".encode())
-    print('enviado OK')
+    #print('enviado OK')
     #broadcast_user()
 
 
-    print(f'Conexão estabelecida com {client}-{username}. Usuários ativos atualmente:\n{sockets}')
+    print(f'Conexão estabelecida com {client}-{username}.\n\nUsuários ativos atualmente:\n{sockets}\n')
+
 
     conectado = True
     while conectado: # Inicia recebimento de JSONs
