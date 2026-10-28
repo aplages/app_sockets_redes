@@ -31,8 +31,8 @@ def print_msg(jinfo):
         convite = jinfo["convidante"]   # define o remetente do convite recebido, para ser usado na função de aceite
         print(f'Você recebeu um convite para grupo de {convite}. Use /accept para aceitar')
 
-    elif acao == "ERRO":
-        print(f'ERRO: {jinfo["mensagem"]}')
+    elif acao == "SERVER":
+        print(f'{jinfo["mensagem"]}')
 
     else:
         print("Erro, nenhuma acao encontrada em print_msg")
@@ -212,10 +212,9 @@ def accept_inv(origem=user):    # REFAZER
         }
 
         client.sendall(json.dumps(info).encode())
+        convite = None # limpa os convites
         return
-
-    convite = None  # limpa os convites
-
+    #ERRO (Nao há nenhum convite)    
     return
 
 def direct_message(destino, mensagem, origem=user):
