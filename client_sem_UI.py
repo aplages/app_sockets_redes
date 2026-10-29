@@ -4,6 +4,9 @@ import json
 
 user = str(input("Nome de usuário:\t"))
 
+while len(user) < 3:
+    user = str(input("(O nome deve ter no mínimo 3 caracteres) - Nome de usuário:\t"))
+
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
 try:
     client.connect(("localhost", 55555))                            # conecta o cliente ao servidor
