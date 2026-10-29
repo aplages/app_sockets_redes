@@ -4,8 +4,8 @@ import json
 
 user = str(input("Nome de usuário:\t"))
 
-while len(user) < 3:
-    user = str(input("(O nome deve ter no mínimo 3 caracteres) - Nome de usuário:\t"))
+while len(user) < 3 or ' ' in user:
+    user = str(input("(O nome deve ter no mínimo 3 caracteres e não pode ter espaço)\nNome de usuário:\t"))
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)      # define o cliente como (IPv4, TCP)
 try:
@@ -258,7 +258,6 @@ def verifica_alvo(alvo : str):
     return True
 
 def invite(destino, origem=user):
-    global em_grupo
     grupo = {
             "acao": "INVITE",
             "convidante": origem,
