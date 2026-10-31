@@ -2,7 +2,6 @@ import socket
 import threading
 import json
 
-host = '0.0.0.0'
 # 0.0.0.0
 host = '0.0.0.0'
 port = 55555
